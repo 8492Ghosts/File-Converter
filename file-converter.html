@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>File Converter</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #00ff88;
+    --accent2: #7c3aed;
+    --accent3: #f59e0b;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+    --danger: #ff4466;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    padding: 2rem;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(ellipse at 20% 20%, rgba(124,58,237,0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(0,255,136,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 900px; margin: 0 auto; position: relative; z-index: 1; }
+
+  header {
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-mark {
+    width: 52px; height: 52px;
+    background: var(--accent);
+    display: flex; align-items: center; justify-content: center;
+    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+    flex-shrink: 0;
+  }
+
+  .logo-mark svg { width: 26px; height: 26px; color: #000; }
+
+  h1 { font-size: 2.4rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; }
+  h1 span { color: var(--accent); }
+  .subtitle { font-family: 'Space Mono', monospace; font-size: 0.7rem; color: var(--muted); letter-spacing: 0.1em; margin-top: 0.3rem; }
+
+  /* Category tabs */
+  .tabs {
+    display: flex; gap: 0.4rem; margin-bottom: 2rem; flex-wrap: wrap;
+  }
+
+  .tab {
+    padding: 0.5rem 1.1rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2rem;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    transition: all 0.2s;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+
+  .tab:hover { border-color: var(--accent); color: var(--text); }
+  .tab.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+  .tab .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Drop zone */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 12px;
+    padding: 3rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dropzone::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at center, rgba(0,255,136,0.05) 0%, transparent 70%);
+    opacity: 0; transition: opacity 0.3s;
+  }
+
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: var(--surface2);
+  }
+
+  .dropzone:hover::before, .dropzone.dragover::before { opacity: 1; }
+
+  .drop-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 1.2rem;
+    background: var(--surface2);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border);
+  }
+
+  .drop-icon svg { width: 28px; height: 28px; color: var(--accent); }
+  .drop-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.4rem; }
+  .drop-sub { font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted); }
+  .drop-sub span { color: var(--accent); }
+
+  #file-input { display: none; }
+
+  /* Conversion panel */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin-top: 1.5rem;
+  }
+
+  .panel-header {
+    padding: 1rem 1.5rem;
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .panel-title { font-size: 0.78rem; font-family: 'Space Mono', monospace; color: var(--muted); letter-spacing: 0.08em; }
+
+  .file-chip {
+    display: flex; align-items: center; gap: 0.6rem;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0.4rem 0.8rem;
+    font-family: 'Space Mono', monospace; font-size: 0.75rem;
+  }
+
+  .ext-badge {
+    background: var(--accent2);
+    color: #fff; padding: 0.1rem 0.4rem;
+    border-radius: 3px; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.05em;
+  }
+
+  .conversion-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.8rem; padding: 1.5rem;
+  }
+
+  .conv-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    display: flex; flex-direction: column; gap: 0.5rem;
+    position: relative; overflow: hidden;
+  }
+
+  .conv-btn::after {
+    content: '';
+    position: absolute; top: 0; left: 0;
+    width: 3px; height: 100%;
+    background: var(--accent);
+    transform: scaleY(0);
+    transform-origin: bottom;
+    transition: transform 0.2s;
+  }
+
+  .conv-btn:hover { border-color: var(--accent); background: rgba(0,255,136,0.05); transform: translateY(-1px); }
+  .conv-btn:hover::after { transform: scaleY(1); }
+  .conv-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .conv-btn:disabled:hover::after { transform: scaleY(0); }
+
+  .conv-arrow { font-size: 0.65rem; color: var(--muted); font-family: 'Space Mono', monospace; }
+  .conv-target { font-size: 1rem; font-weight: 800; color: var(--accent); letter-spacing: -0.02em; }
+  .conv-desc { font-size: 0.65rem; color: var(--muted); font-family: 'Space Mono', monospace; line-height: 1.4; }
+
+  /* Status bar */
+  .status {
+    padding: 0.8rem 1.5rem;
+    background: var(--surface2);
+    border-top: 1px solid var(--border);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    display: flex; align-items: center; gap: 0.6rem;
+  }
+
+  .status.success { color: var(--accent); }
+  .status.error { color: var(--danger); }
+  .status.working { color: var(--accent3); }
+
+  .pulse {
+    width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.7)} }
+
+  /* Info cards */
+  .info-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1.5rem;
+  }
+
+  .info-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+  }
+
+  .info-label { font-family: 'Space Mono', monospace; font-size: 0.62rem; color: var(--muted); letter-spacing: 0.08em; margin-bottom: 0.3rem; }
+  .info-value { font-size: 0.95rem; font-weight: 600; word-break: break-all; }
+
+  .progress-wrap {
+    height: 3px; background: var(--border); border-radius: 2px; margin-top: 1rem; overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 2px; width: 0%; transition: width 0.3s;
+    animation: shimmer 1.5s infinite;
+    background-size: 200% 100%;
+  }
+
+  @keyframes shimmer {
+    0%{background-position:200% 0}
+    100%{background-position:-200% 0}
+  }
+
+  /* Limitations notice */
+  .notice {
+    margin-top: 2rem;
+    padding: 1rem 1.2rem;
+    background: rgba(245,158,11,0.07);
+    border: 1px solid rgba(245,158,11,0.25);
+    border-radius: 8px;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.68rem;
+    color: var(--accent3);
+    line-height: 1.7;
+  }
+
+  .notice strong { font-weight: 700; display: block; margin-bottom: 0.3rem; }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem; }
+    h1 { font-size: 1.8rem; }
+    .info-grid { grid-template-columns: 1fr; }
+    .conversion-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="logo-mark">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 21L3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5"/>
+      </svg>
+    </div>
+    <div>
+      <h1>FILE<span>FORGE</span></h1>
+      <div class="subtitle">// LOCAL BROWSER-BASED CONVERTER — NO UPLOAD</div>
+    </div>
+  </header>
+
+  <!-- Category tabs -->
+  <div class="tabs" id="tabs">
+    <div class="tab active" data-cat="image"><span class="dot"></span>IMAGE</div>
+    <div class="tab" data-cat="audio"><span class="dot"></span>AUDIO</div>
+    <div class="tab" data-cat="video"><span class="dot"></span>VIDEO</div>
+    <div class="tab" data-cat="document"><span class="dot"></span>DOCUMENT</div>
+    <div class="tab" data-cat="data"><span class="dot"></span>DATA</div>
+    <div class="tab" data-cat="archive"><span class="dot"></span>ARCHIVE</div>
+  </div>
+
+  <!-- Drop zone -->
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="file-input">
+    <div class="drop-icon">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0 3 3m-3-3-3 3M6.75 19.5a4.5 4.5 0 0 1-1.41-8.775 5.25 5.25 0 0 1 10.338-2.32 3.75 3.75 0 0 1 3.815 4.8A3.375 3.375 0 0 1 20.25 19.5H6.75Z"/>
+      </svg>
+    </div>
+    <div class="drop-title">Drop your file here</div>
+    <div class="drop-sub">or <span>click to browse</span> · accepted: <span id="accepted-types">JPG, PNG, GIF, WEBP, BMP, ICO, TIFF, SVG</span></div>
+  </div>
+
+  <!-- File info -->
+  <div class="info-grid" id="info-grid" style="display:none">
+    <div class="info-card"><div class="info-label">FILENAME</div><div class="info-value" id="info-name">—</div></div>
+    <div class="info-card"><div class="info-label">SIZE</div><div class="info-value" id="info-size">—</div></div>
+    <div class="info-card"><div class="info-label">TYPE</div><div class="info-value" id="info-type">—</div></div>
+  </div>
+
+  <!-- Conversion panel -->
+  <div class="panel" id="panel" style="display:none">
+    <div class="panel-header">
+      <div class="panel-title">CONVERT TO →</div>
+      <div class="file-chip">
+        <span class="ext-badge" id="from-ext">—</span>
+        <span id="from-name">—</span>
+      </div>
+    </div>
+    <div class="conversion-grid" id="conversion-grid"></div>
+    <div class="status" id="status">
+      <span class="pulse"></span>
+      <span id="status-text">Ready to convert</span>
+    </div>
+    <div class="progress-wrap" id="progress-wrap" style="display:none">
+      <div class="progress-bar" id="progress-bar"></div>
+    </div>
+  </div>
+
+  <div class="notice">
+    <strong>⚡ 100% LOCAL — Files never leave your browser</strong>
+    IMAGE: PNG↔JPG↔WEBP↔BMP↔ICO↔GIF (canvas-based) · DOCUMENT: TXT↔HTML↔Markdown (text transforms) · DATA: JSON↔CSV↔TSV↔XML (structural convert) · SVG↔PNG (render) · AUDIO/VIDEO: format-change via Web Audio API (limited browser support) · ARCHIVE: ZIP creation via JSZip · Some conversions depend on your browser's codec support.
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// ═══════════════════════════════════════════════════
+// CATEGORY CONFIG
+// ═══════════════════════════════════════════════════
+const CATEGORIES = {
+  image: {
+    label: 'IMAGE',
+    accepts: ['image/png','image/jpeg','image/gif','image/webp','image/bmp','image/x-icon','image/tiff','image/svg+xml'],
+    exts: ['png','jpg','jpeg','gif','webp','bmp','ico','tiff','svg'],
+    formats: [
+      { ext: 'png',  mime: 'image/png',  desc: 'Lossless, transparency' },
+      { ext: 'jpg',  mime: 'image/jpeg', desc: 'Compressed, photos', quality: 0.92 },
+      { ext: 'webp', mime: 'image/webp', desc: 'Modern web format', quality: 0.92 },
+      { ext: 'bmp',  mime: 'image/bmp',  desc: 'Uncompressed bitmap' },
+      { ext: 'ico',  mime: 'image/x-icon', desc: 'Windows icon 32×32' },
+      { ext: 'gif',  mime: 'image/gif',  desc: 'Animated / 256 colors' },
+    ],
+    converter: convertImage
+  },
+  audio: {
+    label: 'AUDIO',
+    accepts: ['audio/mpeg','audio/wav','audio/ogg','audio/flac','audio/aac','audio/mp4','audio/webm'],
+    exts: ['mp3','wav','ogg','flac','aac','m4a','opus','webm'],
+    formats: [
+      { ext: 'wav',  mime: 'audio/wav',  desc: 'Uncompressed PCM' },
+      { ext: 'ogg',  mime: 'audio/ogg',  desc: 'Open Vorbis' },
+      { ext: 'webm', mime: 'audio/webm', desc: 'Web Media audio' },
+      { ext: 'mp3',  mime: 'audio/mpeg', desc: 'Universal playback' },
+    ],
+    converter: convertAudio
+  },
+  video: {
+    label: 'VIDEO',
+    accepts: ['video/mp4','video/webm','video/ogg','video/quicktime','video/x-msvideo'],
+    exts: ['mp4','webm','ogv','mov','avi'],
+    formats: [
+      { ext: 'webm', mime: 'video/webm', desc: 'Open web format' },
+      { ext: 'mp4',  mime: 'video/mp4',  desc: 'Universal H.264' },
+      { ext: 'ogv',  mime: 'video/ogg',  desc: 'Theora video' },
+    ],
+    converter: convertVideo
+  },
+  document: {
+    label: 'DOCUMENT',
+    accepts: ['text/plain','text/html','text/markdown','application/json','text/csv','text/rtf'],
+    exts: ['txt','html','htm','md','markdown','rtf'],
+    formats: [
+      { ext: 'txt',  mime: 'text/plain',    desc: 'Plain text' },
+      { ext: 'html', mime: 'text/html',     desc: 'Web page markup' },
+      { ext: 'md',   mime: 'text/markdown', desc: 'Markdown format' },
+      { ext: 'rtf',  mime: 'application/rtf', desc: 'Rich text format' },
+    ],
+    converter: convertDocument
+  },
+  data: {
+    label: 'DATA',
+    accepts: ['application/json','text/csv','text/plain','application/xml','text/xml','text/tab-separated-values'],
+    exts: ['json','csv','tsv','xml','yaml','yml'],
+    formats: [
+      { ext: 'json', mime: 'application/json', desc: 'JavaScript object' },
+      { ext: 'csv',  mime: 'text/csv',         desc: 'Comma separated' },
+      { ext: 'tsv',  mime: 'text/tab-separated-values', desc: 'Tab separated' },
+      { ext: 'xml',  mime: 'application/xml',  desc: 'XML markup' },
+    ],
+    converter: convertData
+  },
+  archive: {
+    label: 'ARCHIVE',
+    accepts: ['application/zip','application/x-zip-compressed','application/gzip','application/x-tar','application/octet-stream'],
+    exts: ['zip','gz','tar','rar','7z'],
+    formats: [
+      { ext: 'zip', mime: 'application/zip', desc: 'ZIP archive (JSZip)' },
+    ],
+    converter: convertArchive
+  }
+};
+
+// ═══════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════
+let activeCategory = 'image';
+let currentFile = null;
+
+// ═══════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    activeCategory = tab.dataset.cat;
+    updateAccepted();
+    resetUI();
+  });
+});
+
+function updateAccepted() {
+  const cat = CATEGORIES[activeCategory];
+  document.getElementById('accepted-types').textContent = cat.exts.map(e => e.toUpperCase()).join(', ');
+}
+
+// Drag & drop
+const dz = document.getElementById('dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+dz.addEventListener('drop', e => {
+  e.preventDefault(); dz.classList.remove('dragover');
+  handleFile(e.dataTransfer.files[0]);
+});
+dz.addEventListener('click', () => document.getElementById('file-input').click());
+document.getElementById('file-input').addEventListener('change', e => handleFile(e.target.files[0]));
+
+function resetUI() {
+  currentFile = null;
+  document.getElementById('panel').style.display = 'none';
+  document.getElementById('info-grid').style.display = 'none';
+  document.getElementById('file-input').value = '';
+}
+
+function handleFile(file) {
+  if (!file) return;
+  currentFile = file;
+
+  // Show info
+  document.getElementById('info-grid').style.display = 'grid';
+  document.getElementById('info-name').textContent = file.name;
+  document.getElementById('info-size').textContent = formatBytes(file.size);
+  document.getElementById('info-type').textContent = file.type || 'unknown';
+
+  // Get extension
+  const ext = file.name.split('.').pop().toLowerCase();
+  const cat = CATEGORIES[activeCategory];
+
+  // Check if this file matches the active category
+  const matchesCat = cat.exts.includes(ext) || cat.accepts.some(a => file.type && file.type.startsWith(a.split('/')[0]) && cat.accepts.includes(file.type));
+
+  // Build conversion buttons
+  const grid = document.getElementById('conversion-grid');
+  grid.innerHTML = '';
+  document.getElementById('from-ext').textContent = ext.toUpperCase();
+  document.getElementById('from-name').textContent = file.name.length > 24 ? file.name.substring(0,22)+'…' : file.name;
+  document.getElementById('panel').style.display = 'block';
+  setStatus('ready', 'Choose a target format to convert');
+
+  cat.formats.forEach(fmt => {
+    if (fmt.ext === ext) return; // skip same format
+    const btn = document.createElement('button');
+    btn.className = 'conv-btn';
+    if (!matchesCat) btn.disabled = true;
+    btn.innerHTML = `
+      <div class="conv-arrow">▶ CONVERT TO</div>
+      <div class="conv-target">.${fmt.ext.toUpperCase()}</div>
+      <div class="conv-desc">${fmt.desc}</div>
+    `;
+    btn.addEventListener('click', () => runConvert(fmt));
+    grid.appendChild(btn);
+  });
+
+  if (!matchesCat) {
+    setStatus('error', `File type .${ext} doesn't match the ${activeCategory} category — switch tabs`);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// CONVERT DISPATCHER
+// ═══════════════════════════════════════════════════
+async function runConvert(fmt) {
+  if (!currentFile) return;
+  setStatus('working', `Converting to .${fmt.ext}…`);
+  showProgress(true);
+  try {
+    const cat = CATEGORIES[activeCategory];
+    const blob = await cat.converter(currentFile, fmt);
+    const outName = currentFile.name.replace(/\.[^.]+$/, '') + '.' + fmt.ext;
+    downloadBlob(blob, outName);
+    setStatus('success', `✓ Saved as ${outName}`);
+  } catch(err) {
+    setStatus('error', `✗ ${err.message || 'Conversion failed'}`);
+    console.error(err);
+  }
+  showProgress(false);
+}
+
+// ═══════════════════════════════════════════════════
+// IMAGE CONVERTER (Canvas-based)
+// ═══════════════════════════════════════════════════
+function convertImage(file, fmt) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+
+      // ICO: max 256px
+      if (fmt.ext === 'ico') { w = Math.min(w, 32); h = Math.min(h, 32); }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+
+      // White bg for formats that don't support transparency
+      if (['jpg','jpeg','bmp','ico'].includes(fmt.ext)) {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, w, h);
+      }
+
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob);
+        else reject(new Error('Canvas conversion failed'));
+      }, fmt.mime, fmt.quality || 1.0);
+    };
+    img.onerror = () => reject(new Error('Could not load image'));
+    img.src = url;
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// AUDIO CONVERTER (Web Audio API — re-encode)
+// ═══════════════════════════════════════════════════
+async function convertAudio(file, fmt) {
+  const AudioContext = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContext) throw new Error('Web Audio API not supported in this browser');
+
+  const arrayBuffer = await file.arrayBuffer();
+  const audioCtx = new AudioContext();
+  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+
+  // Render to offline context
+  const offline = new OfflineAudioContext(
+    audioBuffer.numberOfChannels,
+    audioBuffer.length,
+    audioBuffer.sampleRate
+  );
+  const source = offline.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(offline.destination);
+  source.start(0);
+  const rendered = await offline.startRendering();
+
+  // Encode to WAV (universally supported)
+  const wavBlob = audioBufferToWav(rendered);
+
+  // For other formats we return WAV (browser MediaRecorder is limited)
+  // Note WAV is always safe; for ogg/webm we use MediaRecorder if supported
+  if (fmt.ext === 'wav') return wavBlob;
+
+  // Try MediaRecorder
+  const audio = new Audio();
+  audio.src = URL.createObjectURL(wavBlob);
+  await new Promise(r => { audio.onloadedmetadata = r; });
+
+  const stream = audio.captureStream ? audio.captureStream() : audio.mozCaptureStream ? audio.mozCaptureStream() : null;
+  if (!stream) throw new Error(`Direct .${fmt.ext} encoding not supported — WAV is always safe`);
+
+  const mimeType = MediaRecorder.isTypeSupported(fmt.mime) ? fmt.mime : 'audio/webm';
+  const recorder = new MediaRecorder(stream, { mimeType });
+  const chunks = [];
+  recorder.ondataavailable = e => chunks.push(e.data);
+
+  return new Promise((resolve, reject) => {
+    recorder.onstop = () => resolve(new Blob(chunks, { type: fmt.mime }));
+    recorder.onerror = reject;
+    audio.play();
+    recorder.start();
+    audio.onended = () => recorder.stop();
+  });
+}
+
+function audioBufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  const byteRate = sampleRate * blockAlign;
+  const dataSize = buffer.length * blockAlign;
+  const ab = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(ab);
+
+  const writeStr = (off, s) => { for(let i=0;i<s.length;i++) view.setUint8(off+i,s.charCodeAt(i)); };
+  writeStr(0,'RIFF');
+  view.setUint32(4, 36+dataSize, true);
+  writeStr(8,'WAVE');
+  writeStr(12,'fmt ');
+  view.setUint32(16,16,true);
+  view.setUint16(20,format,true);
+  view.setUint16(22,numChannels,true);
+  view.setUint32(24,sampleRate,true);
+  view.setUint32(28,byteRate,true);
+  view.setUint16(32,blockAlign,true);
+  view.setUint16(34,bitDepth,true);
+  writeStr(36,'data');
+  view.setUint32(40,dataSize,true);
+
+  let offset = 44;
+  for(let i=0;i<buffer.length;i++) {
+    for(let ch=0;ch<numChannels;ch++) {
+      const sample = Math.max(-1,Math.min(1,buffer.getChannelData(ch)[i]));
+      view.setInt16(offset, sample<0 ? sample*0x8000 : sample*0x7FFF, true);
+      offset += 2;
+    }
+  }
+  return new Blob([ab], { type: 'audio/wav' });
+}
+
+// ═══════════════════════════════════════════════════
+// VIDEO CONVERTER (MediaRecorder)
+// ═══════════════════════════════════════════════════
+async function convertVideo(file, fmt) {
+  const video = document.createElement('video');
+  video.src = URL.createObjectURL(file);
+  video.muted = true;
+  await new Promise((res, rej) => {
+    video.onloadedmetadata = res;
+    video.onerror = rej;
+  });
+
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+
+  const stream = canvas.captureStream(30);
+
+  // Try to capture audio
+  if (video.captureStream) {
+    const vs = video.captureStream();
+    vs.getAudioTracks().forEach(t => stream.addTrack(t));
+  }
+
+  const mimeType = MediaRecorder.isTypeSupported(fmt.mime) ? fmt.mime :
+                   MediaRecorder.isTypeSupported('video/webm;codecs=vp8') ? 'video/webm;codecs=vp8' : 'video/webm';
+
+  const recorder = new MediaRecorder(stream, { mimeType });
+  const chunks = [];
+  recorder.ondataavailable = e => chunks.push(e.data);
+
+  return new Promise((resolve, reject) => {
+    recorder.onstop = () => resolve(new Blob(chunks, { type: fmt.mime }));
+    recorder.onerror = reject;
+
+    recorder.start();
+    video.play();
+
+    const draw = () => {
+      if (video.ended || video.paused) { recorder.stop(); return; }
+      ctx.drawImage(video, 0, 0);
+      requestAnimationFrame(draw);
+    };
+    requestAnimationFrame(draw);
+    video.onended = () => recorder.stop();
+  });
+}
+
+// ═══════════════════════════════════════════════════
+// DOCUMENT CONVERTER
+// ═══════════════════════════════════════════════════
+async function convertDocument(file, fmt) {
+  const text = await file.text();
+  const srcExt = file.name.split('.').pop().toLowerCase();
+  let out = '';
+
+  // Strip HTML tags helper
+  const stripHtml = h => h.replace(/<[^>]*>/g,'').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ');
+
+  // Markdown to HTML
+  const mdToHtml = md => {
+    return md
+      .replace(/^# (.+)$/gm, '<h1>$1</h1>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*(.+?)\*/g, '<em>$1</em>')
+      .replace(/`(.+?)`/g, '<code>$1</code>')
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/^(.+)$/gm, (l) => l.startsWith('<') ? l : `<p>${l}</p>`)
+      .replace(/<p><\/p>/g,'');
+  };
+
+  // HTML to Markdown
+  const htmlToMd = h => stripHtml(
+    h.replace(/<h1[^>]*>(.*?)<\/h1>/gi,'# $1\n')
+     .replace(/<h2[^>]*>(.*?)<\/h2>/gi,'## $1\n')
+     .replace(/<h3[^>]*>(.*?)<\/h3>/gi,'### $1\n')
+     .replace(/<strong[^>]*>(.*?)<\/strong>/gi,'**$1**')
+     .replace(/<em[^>]*>(.*?)<\/em>/gi,'*$1*')
+     .replace(/<br\s*\/?>/gi,'\n')
+     .replace(/<\/p>/gi,'\n\n')
+     .replace(/<p[^>]*>/gi,'')
+     .replace(/<li[^>]*>(.*?)<\/li>/gi,'- $1\n')
+  );
+
+  if (fmt.ext === 'txt') {
+    out = srcExt === 'html' || srcExt === 'htm' ? stripHtml(text) :
+          srcExt === 'md' || srcExt === 'markdown' ? stripHtml(mdToHtml(text)) : text;
+  } else if (fmt.ext === 'html') {
+    if (srcExt === 'md' || srcExt === 'markdown') {
+      out = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Converted</title></head><body>${mdToHtml(text)}</body></html>`;
+    } else if (srcExt === 'txt') {
+      out = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Converted</title></head><body><pre>${text.replace(/</g,'&lt;')}</pre></body></html>`;
+    } else { out = text; }
+  } else if (fmt.ext === 'md') {
+    if (srcExt === 'html' || srcExt === 'htm') out = htmlToMd(text);
+    else if (srcExt === 'txt') out = text;
+    else out = text;
+  } else if (fmt.ext === 'rtf') {
+    const plain = srcExt === 'html' || srcExt === 'htm' ? stripHtml(text) : text;
+    out = `{\\rtf1\\ansi\\deff0{\\fonttbl{\\f0 Helvetica;}}\\f0\\fs24 ${plain.replace(/\n/g,'\\par ')}}`;
+  } else { out = text; }
+
+  return new Blob([out], { type: fmt.mime });
+}
+
+// ═══════════════════════════════════════════════════
+// DATA CONVERTER
+// ═══════════════════════════════════════════════════
+async function convertData(file, fmt) {
+  const text = await file.text();
+  const srcExt = file.name.split('.').pop().toLowerCase();
+  let rows = [];
+  let out = '';
+
+  // Parse input
+  if (srcExt === 'json') {
+    const data = JSON.parse(text);
+    rows = Array.isArray(data) ? data : [data];
+  } else if (srcExt === 'csv') {
+    rows = parseDelimited(text, ',');
+  } else if (srcExt === 'tsv') {
+    rows = parseDelimited(text, '\t');
+  } else if (srcExt === 'xml') {
+    // Simple XML→object (attribute-less flat tags)
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(text, 'application/xml');
+    const root = doc.documentElement;
+    rows = Array.from(root.children).map(child => {
+      const obj = {};
+      Array.from(child.children).forEach(c => obj[c.tagName] = c.textContent);
+      return obj;
+    });
+    if (rows.length === 0) {
+      // Fallback: flat key/value
+      rows = [{}];
+      Array.from(root.children).forEach(c => rows[0][c.tagName] = c.textContent);
+    }
+  } else {
+    throw new Error(`Cannot parse .${srcExt} as data`);
+  }
+
+  // Serialize output
+  if (fmt.ext === 'json') {
+    out = JSON.stringify(rows, null, 2);
+  } else if (fmt.ext === 'csv') {
+    out = serializeDelimited(rows, ',');
+  } else if (fmt.ext === 'tsv') {
+    out = serializeDelimited(rows, '\t');
+  } else if (fmt.ext === 'xml') {
+    const rootTag = 'records';
+    const itemTag = 'item';
+    const items = rows.map(row => {
+      const fields = Object.entries(row).map(([k,v]) => `  <${k}>${String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</${k}>`).join('\n  ');
+      return `<${itemTag}>\n  ${fields}\n  </${itemTag}>`;
+    }).join('\n');
+    out = `<?xml version="1.0" encoding="UTF-8"?>\n<${rootTag}>\n${items}\n</${rootTag}>`;
+  }
+
+  return new Blob([out], { type: fmt.mime });
+}
+
+function parseDelimited(text, sep) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = splitLine(lines[0], sep);
+  return lines.slice(1).map(line => {
+    const vals = splitLine(line, sep);
+    const obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = (vals[i] || '').trim());
+    return obj;
+  });
+}
+
+function splitLine(line, sep) {
+  // Basic quoted field handling
+  const result = [];
+  let cur = '', inQ = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (c === '"') { inQ = !inQ; continue; }
+    if (c === sep && !inQ) { result.push(cur); cur = ''; continue; }
+    cur += c;
+  }
+  result.push(cur);
+  return result;
+}
+
+function serializeDelimited(rows, sep) {
+  if (!rows.length) return '';
+  const headers = Object.keys(rows[0]);
+  const escape = v => {
+    const s = String(v ?? '');
+    return s.includes(sep) || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s;
+  };
+  const lines = [headers.map(escape).join(sep)];
+  rows.forEach(row => lines.push(headers.map(h => escape(row[h])).join(sep)));
+  return lines.join('\n');
+}
+
+// ═══════════════════════════════════════════════════
+// ARCHIVE (ZIP wrapping via JSZip)
+// ═══════════════════════════════════════════════════
+async function convertArchive(file, fmt) {
+  if (fmt.ext === 'zip') {
+    const zip = new JSZip();
+    zip.file(file.name, file);
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+    return blob;
+  }
+  throw new Error(`Cannot convert to .${fmt.ext} in browser`);
+}
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function downloadBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(2) + ' MB';
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById('status');
+  const txt = document.getElementById('status-text');
+  el.className = 'status ' + type;
+  txt.textContent = msg;
+}
+
+function showProgress(on) {
+  const wrap = document.getElementById('progress-wrap');
+  wrap.style.display = on ? 'block' : 'none';
+  if (on) {
+    const bar = document.getElementById('progress-bar');
+    bar.style.width = '0%';
+    setTimeout(() => bar.style.width = '70%', 50);
+  }
+}
+
+// Init
+updateAccepted();
+</script>
+</body>
+</html>
